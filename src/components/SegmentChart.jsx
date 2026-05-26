@@ -4,6 +4,70 @@ import { SEG_COLORS, fmtMoney, fmtMoneyFull } from '../lib/format.js';
 
 Chart.register(...registerables);
 
+// Custom Chart.js plugin — draws the stacked-bar total above each column.
+// Ported from v11's totalPlugin. Only fires on bar charts with stacked data.
+//
+// For money charts, formats as $1.9M / $162K. For others, uses thousands
+// separators. The total floats above the tallest bar with a black stroke
+// so it stays readable on any background.
+const totalLabelsPlugin = {
+  id: 'totalLabels',
+  afterDatasetsDraw(chart) {
+    if (chart.config.type !== 'bar') return;
+    const hasStack = chart.data.datasets.some((ds) => ds.stack);
+    if (!hasStack) return;
+
+    const ctx = chart.ctx;
+    const data = chart.data;
+    ctx.save();
+
+    data.labels.forEach((_, i) => {
+      // Sum the stack at this index
+      let total = 0;
+      data.datasets.forEach((ds) => {
+        if (ds.type !== 'line') {
+          total += ds.data[i] || 0;
+        }
+      });
+      if (total === 0) return;
+
+      // Find the topmost Y pixel (smallest y value) across all datasets at i
+      let topY = Infinity;
+      data.datasets.forEach((ds, dsIdx) => {
+        if (ds.type === 'line') return;
+        const meta = chart.getDatasetMeta(dsIdx);
+        if (meta.data[i] && meta.data[i].y < topY) {
+          topY = meta.data[i].y;
+        }
+      });
+
+      const pos = chart.getDatasetMeta(0).data[i];
+      if (!pos) return;
+
+      // Detect whether Y axis renders money — if so, format as money.
+      let isMoney = false;
+      try {
+        const yopt = chart.options?.scales?.y;
+        const sample = yopt?.ticks?.callback?.(1000);
+        if (typeof sample === 'string' && sample.indexOf('$') === 0) isMoney = true;
+      } catch (e) { /* noop */ }
+
+      const text = isMoney ? fmtMoney(total) : Number(total).toLocaleString();
+
+      ctx.font = 'bold 13px Inter, Arial';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.strokeText(text, pos.x, topY - 8);
+      ctx.fillText(text, pos.x, topY - 8);
+    });
+
+    ctx.restore();
+  },
+};
+
 // SegmentChart — one chart per metric, with bar or line mode.
 //
 // Props:
@@ -14,8 +78,8 @@ Chart.register(...registerables);
 //   isMoney     — true for revenue; formats Y axis + tooltips as $
 //   isVelocity  — true for velocity; caps Y at 25 to match v11
 //
-// Bar mode renders each segment as a stacked bar; line mode draws one line
-// per segment, no fill. Direct port of drawChart() from v11.
+// Bar mode renders each segment as a stacked bar with a total label on top;
+// line mode draws one line per segment, no fill.
 
 export default function SegmentChart({
   src, months, activeSegs, type = 'bar', isMoney = false, isVelocity = false, height = 280,
@@ -78,7 +142,8 @@ export default function SegmentChart({
           responsive: true,
           maintainAspectRatio: false,
           animation: false,
-          layout: { padding: { top: 22 } },
+          // Extra top padding so the total labels have room to render
+          layout: { padding: { top: 32 } },
           plugins: {
             legend: { display: false },
             tooltip: { callbacks: { label: tooltipFormat } },
@@ -105,7 +170,8 @@ export default function SegmentChart({
           responsive: true,
           maintainAspectRatio: false,
           animation: false,
-          layout: { padding: { top: 22 } },
+          // Extra top padding so the total labels have room to render
+          layout: { padding: { top: 32 } },
           plugins: {
             legend: { display: false },
             tooltip: { callbacks: { label: tooltipFormat } },
@@ -115,6 +181,7 @@ export default function SegmentChart({
             y: { ...yScale, stacked: true },
           },
         },
+        plugins: [totalLabelsPlugin],
       };
     }
 
