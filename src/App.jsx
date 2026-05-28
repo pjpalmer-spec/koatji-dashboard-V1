@@ -14,6 +14,7 @@ import { fmtMoneyFull } from './lib/format.js';
 //   - which tab is active
 //   - which months are in the visible window (si / ei)
 //   - which segments are active
+//   - chart granularity (monthly vs quarterly)
 // Then passes them into each tab. Data fetch happens once on mount.
 
 const TABS = [
@@ -50,15 +51,11 @@ function Dashboard({ payload }) {
   const customers = payload.customers?.customers || [];
   const pl = payload.pl && !payload.pl.error ? payload.pl : null;
 
-  // Discover which segments are actually present in this dataset and respect
-  // SEG_ORDER. Mirrors v11's filter.
   const segs = useMemo(
     () => SEG_ORDER.filter((s) => data.cases[s] && data.cases[s].some((v) => v > 0)),
     [data]
   );
 
-  // Default window: Jan25..Jun26 (matches v11). Fall back to full range
-  // if those labels aren't in this dataset.
   const months = data.months;
   const defaultSi = useMemo(() => {
     const i = months.indexOf('Jan25');
@@ -74,25 +71,23 @@ function Dashboard({ payload }) {
   const [activeSegs, setActiveSegs] = useState(segs);
   const [tab, setTab] = useState('overview');
 
-  // Reconciliation banner — count of yellow/red months in window
+  // Chart granularity: 'monthly' or 'quarterly'. Affects every chart that
+  // accepts a granularity prop. KPIs always stay monthly because they're
+  // single-period snapshots, not time series.
+  const [granularity, setGranularity] = useState('monthly');
+
   const reconAlerts = useMemo(() => {
     if (!pl) return [];
     return computeReconRows(data, pl, si, ei).filter((r) => r.flag !== 'green');
   }, [data, pl, si, ei]);
 
-  // Build tab list — hide Reconcile if no P&L
   const visibleTabs = TABS.filter((t) => !t.requiresPL || pl);
-
-  // KPI strip + Controls visible on every tab except Customers and Reconcile
-  // (where they don't add anything useful)
   const showStripAndControls = tab !== 'customers' && tab !== 'recon';
 
   return (
     <div>
-      {/* White top bar — visual continuation of v11 layout */}
       <div style={{ background: 'white', height: 50 }} />
 
-      {/* Tabs */}
       <div className="tabs-wrapper">
         <div className="tabs">
           {visibleTabs.map((t) => (
@@ -108,19 +103,35 @@ function Dashboard({ payload }) {
         </div>
       </div>
 
-      {/* Controls (period picker + segment filter) */}
-      <div className="controls" style={{ display: showStripAndControls || tab === 'customers' ? 'block' : 'block' }}>
+      <div className="controls">
         <div className="card-controls">
           <PeriodPicker months={months} si={si} ei={ei} setSi={setSi} setEi={setEi} />
+
+          {/* Display granularity toggle — Monthly / Quarterly */}
           <div className="control-card">
             <div className="card-title">Display</div>
-            <div style={{ fontSize: 12, color: '#888' }}>Bar/line toggle is on each chart.</div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                className={'control-btn' + (granularity === 'monthly' ? ' active' : '')}
+                onClick={() => setGranularity('monthly')}
+                style={{ minWidth: 80 }}
+              >
+                Monthly
+              </button>
+              <button
+                className={'control-btn' + (granularity === 'quarterly' ? ' active' : '')}
+                onClick={() => setGranularity('quarterly')}
+                style={{ minWidth: 80 }}
+              >
+                Quarterly
+              </button>
+            </div>
           </div>
+
           <SegmentFilter segs={segs} activeSegs={activeSegs} setActiveSegs={setActiveSegs} />
         </div>
       </div>
 
-      {/* Reconciliation alert banner */}
       {reconAlerts.length > 0 && (
         <div
           onClick={() => setTab('recon')}
@@ -156,18 +167,17 @@ function Dashboard({ payload }) {
         </div>
       )}
 
-      {/* KPI strip */}
       {showStripAndControls && (
         <KpiStrip data={data} activeSegs={activeSegs} si={si} ei={ei} />
       )}
 
-      {/* Tab content */}
-      {tab === 'overview' && <OverviewTab data={data} activeSegs={activeSegs} si={si} ei={ei} />}
-      {tab === 'cases' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="cases" title="Cases by Segment" />}
-      {tab === 'orders' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="orders" title="Orders by Segment" />}
-      {tab === 'doors' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="doors" title="Doors by Segment" />}
-      {tab === 'velocity' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="velocity" title="Velocity by Segment" isVelocity />}
-      {tab === 'revenue' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="revenue" title="Gross Revenue by Segment" isMoney />}
+      {/* Tab content — granularity propagated to every tab that has charts */}
+      {tab === 'overview' && <OverviewTab data={data} activeSegs={activeSegs} si={si} ei={ei} granularity={granularity} />}
+      {tab === 'cases' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="cases" title="Cases by Segment" granularity={granularity} />}
+      {tab === 'orders' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="orders" title="Orders by Segment" granularity={granularity} />}
+      {tab === 'doors' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="doors" title="Doors by Segment" isDoors granularity={granularity} />}
+      {tab === 'velocity' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="velocity" title="Velocity by Segment" isVelocity granularity={granularity} />}
+      {tab === 'revenue' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="revenue" title="Gross Revenue by Segment" isMoney granularity={granularity} />}
       {tab === 'recon' && <ReconciliationTab data={data} pl={pl} si={si} ei={ei} />}
       {tab === 'customers' && <CustomersTab data={data} customers={customers} activeSegs={activeSegs} si={si} ei={ei} />}
     </div>
