@@ -1,15 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { SEG_COLORS, fmtMoney, fmtMoneyFull } from '../lib/format.js';
+import { aggregate } from '../lib/aggregate.js';
 
 Chart.register(...registerables);
 
 // Custom Chart.js plugin — draws the stacked-bar total above each column.
-// Ported from v11's totalPlugin. Only fires on bar charts with stacked data.
-//
-// For money charts, formats as $1.9M / $162K. For others, uses thousands
-// separators. The total floats above the tallest bar with a black stroke
-// so it stays readable on any background.
+// Ported from v11's totalPlugin.
 const totalLabelsPlugin = {
   id: 'totalLabels',
   afterDatasetsDraw(chart) {
@@ -22,29 +19,22 @@ const totalLabelsPlugin = {
     ctx.save();
 
     data.labels.forEach((_, i) => {
-      // Sum the stack at this index
       let total = 0;
       data.datasets.forEach((ds) => {
-        if (ds.type !== 'line') {
-          total += ds.data[i] || 0;
-        }
+        if (ds.type !== 'line') total += ds.data[i] || 0;
       });
       if (total === 0) return;
 
-      // Find the topmost Y pixel (smallest y value) across all datasets at i
       let topY = Infinity;
       data.datasets.forEach((ds, dsIdx) => {
         if (ds.type === 'line') return;
         const meta = chart.getDatasetMeta(dsIdx);
-        if (meta.data[i] && meta.data[i].y < topY) {
-          topY = meta.data[i].y;
-        }
+        if (meta.data[i] && meta.data[i].y < topY) topY = meta.data[i].y;
       });
 
       const pos = chart.getDatasetMeta(0).data[i];
       if (!pos) return;
 
-      // Detect whether Y axis renders money — if so, format as money.
       let isMoney = false;
       try {
         const yopt = chart.options?.scales?.y;
@@ -53,7 +43,6 @@ const totalLabelsPlugin = {
       } catch (e) { /* noop */ }
 
       const text = isMoney ? fmtMoney(total) : Number(total).toLocaleString();
-
       ctx.font = 'bold 13px Inter, Arial';
       ctx.fillStyle = '#FFFFFF';
       ctx.strokeStyle = '#000000';
@@ -68,21 +57,11 @@ const totalLabelsPlugin = {
   },
 };
 
-// SegmentChart — one chart per metric, with bar or line mode.
-//
-// Props:
-//   src         — D.cases, D.orders, etc. — { [segment]: [...monthly vals] }
-//   months      — array of "Jan25" labels (already sliced to si..ei)
-//   activeSegs  — segments to render
-//   type        — 'bar' or 'line'
-//   isMoney     — true for revenue; formats Y axis + tooltips as $
-//   isVelocity  — true for velocity; caps Y at 25 to match v11
-//
-// Bar mode renders each segment as a stacked bar with a total label on top;
-// line mode draws one line per segment, no fill.
-
+// SegmentChart — respects granularity prop (monthly or quarterly).
 export default function SegmentChart({
-  src, months, activeSegs, type = 'bar', isMoney = false, isVelocity = false, height = 280,
+  src, months, activeSegs,
+  type = 'bar', isMoney = false, isVelocity = false, isDoors = false,
+  granularity = 'monthly', height = 280,
 }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
@@ -90,21 +69,28 @@ export default function SegmentChart({
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    // Filter to segments that actually have data in this window
     const asegs = activeSegs.filter(
       (s) => src[s] && src[s].some((v) => v > 0)
     );
 
-    // Destroy any existing chart before re-rendering
     if (chartRef.current) {
       chartRef.current.destroy();
       chartRef.current = null;
     }
-
     if (!asegs.length) return;
 
     const gc = 'rgba(255,255,255,0.1)';
     const tc = '#FFFFFF';
+
+    // Aggregate per segment according to granularity. All segments share
+    // the same labels — pull from first aggregation.
+    const firstAgg = aggregate(src[asegs[0]] || [], months, granularity, isVelocity, isDoors);
+    const labels = firstAgg.labels;
+
+    const datasetsPerSeg = asegs.map((s) => {
+      const a = aggregate(src[s] || [], months, granularity, isVelocity, isDoors);
+      return { seg: s, values: a.values };
+    });
 
     const yScale = {
       grid: { color: gc },
@@ -126,11 +112,11 @@ export default function SegmentChart({
       config = {
         type: 'line',
         data: {
-          labels: months,
-          datasets: asegs.map((s) => ({
-            label: s,
-            data: src[s],
-            borderColor: SEG_COLORS[s] || '#aaa',
+          labels,
+          datasets: datasetsPerSeg.map(({ seg, values }) => ({
+            label: seg,
+            data: values,
+            borderColor: SEG_COLORS[seg] || '#aaa',
             backgroundColor: 'transparent',
             tension: 0.3,
             pointRadius: 3,
@@ -142,7 +128,6 @@ export default function SegmentChart({
           responsive: true,
           maintainAspectRatio: false,
           animation: false,
-          // Extra top padding so the total labels have room to render
           layout: { padding: { top: 32 } },
           plugins: {
             legend: { display: false },
@@ -158,11 +143,11 @@ export default function SegmentChart({
       config = {
         type: 'bar',
         data: {
-          labels: months,
-          datasets: asegs.map((s) => ({
-            label: s,
-            data: src[s],
-            backgroundColor: SEG_COLORS[s] || '#aaa',
+          labels,
+          datasets: datasetsPerSeg.map(({ seg, values }) => ({
+            label: seg,
+            data: values,
+            backgroundColor: SEG_COLORS[seg] || '#aaa',
             stack: 's',
           })),
         },
@@ -170,7 +155,6 @@ export default function SegmentChart({
           responsive: true,
           maintainAspectRatio: false,
           animation: false,
-          // Extra top padding so the total labels have room to render
           layout: { padding: { top: 32 } },
           plugins: {
             legend: { display: false },
@@ -193,7 +177,7 @@ export default function SegmentChart({
         chartRef.current = null;
       }
     };
-  }, [src, months, activeSegs, type, isMoney, isVelocity]);
+  }, [src, months, activeSegs, type, isMoney, isVelocity, isDoors, granularity]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height }}>
@@ -202,7 +186,6 @@ export default function SegmentChart({
   );
 }
 
-// Small legend component used above charts
 export function ChartLegend({ activeSegs }) {
   return (
     <div className="legend">
