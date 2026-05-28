@@ -58,3 +58,70 @@ export function quarterMonthIndices(months, quarter, currentMi) {
   });
   return out;
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Quarterly chart aggregation (v11's agg() function, JS port)
+// ─────────────────────────────────────────────────────────────────
+//
+// Takes a single segment's monthly value array + the corresponding month
+// labels, and returns either:
+//   - { labels: [...], values: [...] }  if granularity is 'monthly' (pass-through)
+//   - { labels: ['2025-Q1', ...], values: [...] }  if 'quarterly'
+//
+// For quarterly:
+//   - cases / orders / revenue → sum across the months in each quarter
+//   - doors → last value in each quarter (point-in-time)
+//   - velocity → average of non-zero values in each quarter
+
+const Q_MAP_PUB = {
+  Jan: 'Q1', Feb: 'Q1', Mar: 'Q1', Apr: 'Q2', May: 'Q2', Jun: 'Q2',
+  Jul: 'Q3', Aug: 'Q3', Sep: 'Q3', Oct: 'Q4', Nov: 'Q4', Dec: 'Q4',
+};
+
+function gQ(m) {
+  return '20' + m.slice(3) + '-' + (Q_MAP_PUB[m.slice(0, 3)] || 'Q?');
+}
+
+function aggQ(months, vals, reduceFn) {
+  const qd = {};
+  const order = [];
+  months.forEach((m, i) => {
+    const q = gQ(m);
+    if (!qd[q]) { qd[q] = []; order.push(q); }
+    qd[q].push(vals[i] || 0);
+  });
+  return {
+    labels: order,
+    values: order.map((q) => reduceFn(qd[q])),
+  };
+}
+
+/**
+ * Aggregate a series for charting.
+ *
+ * @param {number[]} vals    Monthly values (already sliced to visible window).
+ * @param {string[]} months  Corresponding month labels (same length).
+ * @param {string} granularity  'monthly' or 'quarterly'.
+ * @param {boolean} isVelocity  Use velocity (avg non-zero) aggregation.
+ * @param {boolean} isDoors     Use doors (last) aggregation.
+ * @returns {{labels: string[], values: number[]}}
+ */
+export function aggregate(vals, months, granularity, isVelocity = false, isDoors = false) {
+  if (granularity === 'monthly') return { labels: months, values: vals };
+
+  if (isVelocity) {
+    return aggQ(months, vals, (arr) => {
+      const f = arr.filter((v) => v > 0);
+      if (!f.length) return 0;
+      return Math.round(f.reduce((s, v) => s + v, 0) / f.length * 10) / 10;
+    });
+  }
+
+  if (isDoors) {
+    // Point-in-time: take last value in the quarter
+    return aggQ(months, vals, (arr) => arr[arr.length - 1]);
+  }
+
+  // Default: sum
+  return aggQ(months, vals, (arr) => arr.reduce((s, v) => s + v, 0));
+}
