@@ -1,11 +1,57 @@
 import { useEffect, useRef } from 'react';
 import { Chart, registerables } from 'chart.js';
-import { filtSum } from '../lib/aggregate.js';
-import { aggregate } from '../lib/aggregate.js';
+import { filtSum, aggregate } from '../lib/aggregate.js';
 
 Chart.register(...registerables);
 
-// DTC vs B2B chart — two series, respects granularity.
+// Custom plugin — draws the stacked total above each bar.
+// Same logic as in SegmentChart, kept inline here so DtcVsB2BChart has no
+// cross-component dependency.
+const totalLabelsPlugin = {
+  id: 'totalLabels',
+  afterDatasetsDraw(chart) {
+    if (chart.config.type !== 'bar') return;
+    const hasStack = chart.data.datasets.some((ds) => ds.stack);
+    if (!hasStack) return;
+
+    const ctx = chart.ctx;
+    const data = chart.data;
+    ctx.save();
+
+    data.labels.forEach((_, i) => {
+      let total = 0;
+      data.datasets.forEach((ds) => {
+        if (ds.type !== 'line') total += ds.data[i] || 0;
+      });
+      if (total === 0) return;
+
+      let topY = Infinity;
+      data.datasets.forEach((ds, dsIdx) => {
+        if (ds.type === 'line') return;
+        const meta = chart.getDatasetMeta(dsIdx);
+        if (meta.data[i] && meta.data[i].y < topY) topY = meta.data[i].y;
+      });
+
+      const pos = chart.getDatasetMeta(0).data[i];
+      if (!pos) return;
+
+      const text = Number(total).toLocaleString();
+      ctx.font = 'bold 13px Inter, Arial';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.strokeText(text, pos.x, topY - 8);
+      ctx.fillText(text, pos.x, topY - 8);
+    });
+
+    ctx.restore();
+  },
+};
+
+// DTC vs B2B chart — two series (DTC raw + filtered B2B sum). Now shows
+// stacked totals on top of each bar and respects granularity.
 export default function DtcVsB2BChart({ data, activeSegs, si, ei, type = 'bar', granularity = 'monthly' }) {
   const canvasRef = useRef(null);
   const chartRef = useRef(null);
@@ -18,7 +64,7 @@ export default function DtcVsB2BChart({ data, activeSegs, si, ei, type = 'bar', 
     const dtcRaw = data.dtc.slice(si, ei + 1);
     const b2bRaw = months.map((_, i) => filtSum(data, activeSegs, 'cases', si + i));
 
-    // Aggregate to chosen granularity (sums for both DTC and B2B)
+    // Aggregate to chosen granularity
     const dtcAgg = aggregate(dtcRaw, months, granularity, false, false);
     const b2bAgg = aggregate(b2bRaw, months, granularity, false, false);
     const labels = dtcAgg.labels;
@@ -42,7 +88,7 @@ export default function DtcVsB2BChart({ data, activeSegs, si, ei, type = 'bar', 
           },
           options: {
             responsive: true, maintainAspectRatio: false, animation: false,
-            layout: { padding: { top: 22 } },
+            layout: { padding: { top: 32 } },
             plugins: { legend: { display: true, labels: { color: '#fff', boxWidth: 12, font: { size: 12 } } } },
             scales: {
               x: { grid: { color: gc }, ticks: { color: tc, font: { size: 10 } } },
@@ -61,13 +107,14 @@ export default function DtcVsB2BChart({ data, activeSegs, si, ei, type = 'bar', 
           },
           options: {
             responsive: true, maintainAspectRatio: false, animation: false,
-            layout: { padding: { top: 22 } },
+            layout: { padding: { top: 32 } },
             plugins: { legend: { display: true, labels: { color: '#fff', boxWidth: 12, font: { size: 12 } } } },
             scales: {
               x: { stacked: true, grid: { color: gc }, ticks: { color: tc, font: { size: 10 } } },
               y: { stacked: true, grid: { color: gc }, ticks: { color: tc, font: { size: 10 } } },
             },
           },
+          plugins: [totalLabelsPlugin],
         };
 
     chartRef.current = new Chart(canvasRef.current, config);
