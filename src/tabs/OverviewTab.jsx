@@ -5,11 +5,10 @@ import DtcVsB2BChart from '../components/DtcVsB2BChart.jsx';
 // Overview tab. Shows the four "executive summary" charts in v11 order:
 //   1. Cases by segment
 //   2. Gross Revenue by segment
-//   3. DTC vs B2B (stacked) — uses both DTC raw + filtered B2B sum
+//   3. DTC vs B2B (stacked)
 //   4. Doors by segment
 //
-// Each card has its own Bar / Line toggle (kept independent so users can
-// look at trends as lines without losing the stacked totals on others).
+// All charts respect the global `granularity` prop (monthly/quarterly).
 
 function ChartCard({ title, children, type, setType }) {
   return (
@@ -27,13 +26,12 @@ function ChartCard({ title, children, type, setType }) {
 }
 
 function sliceSrc(src, si, ei) {
-  // Slice every segment's array to the visible window
   const out = {};
   Object.keys(src || {}).forEach((s) => { out[s] = (src[s] || []).slice(si, ei + 1); });
   return out;
 }
 
-export default function OverviewTab({ data, activeSegs, si, ei }) {
+export default function OverviewTab({ data, activeSegs, si, ei, granularity }) {
   const [casesType, setCasesType] = useState('bar');
   const [revType, setRevType] = useState('bar');
   const [dtcType, setDtcType] = useState('bar');
@@ -53,6 +51,7 @@ export default function OverviewTab({ data, activeSegs, si, ei }) {
           months={months}
           activeSegs={activeSegs}
           type={casesType}
+          granularity={granularity}
         />
       </ChartCard>
 
@@ -67,12 +66,13 @@ export default function OverviewTab({ data, activeSegs, si, ei }) {
             activeSegs={activeSegs}
             type={revType}
             isMoney
+            granularity={granularity}
           />
         </ChartCard>
       )}
 
       <ChartCard title="DTC vs B2B Cases" type={dtcType} setType={setDtcType}>
-        <DtcVsB2BChart data={data} activeSegs={activeSegs} si={si} ei={ei} type={dtcType} />
+        <DtcVsB2BChart data={data} activeSegs={activeSegs} si={si} ei={ei} type={dtcType} granularity={granularity} />
       </ChartCard>
 
       <ChartCard title="Store Doors by Segment" type={doorsType} setType={setDoorsType}>
@@ -84,6 +84,8 @@ export default function OverviewTab({ data, activeSegs, si, ei }) {
           months={months}
           activeSegs={activeSegs}
           type={doorsType}
+          isDoors
+          granularity={granularity}
           height={220}
         />
       </ChartCard>
