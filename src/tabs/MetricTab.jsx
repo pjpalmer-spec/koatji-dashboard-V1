@@ -2,9 +2,7 @@ import { useState } from 'react';
 import SegmentChart, { ChartLegend } from '../components/SegmentChart.jsx';
 
 // Generic metric tab — used by Cases, Orders, Doors, Velocity, Revenue tabs.
-// Renders the main chart with bar/line toggle. (The v11 "segment breakdown"
-// mini-row sparklines below the chart could be added later as a follow-up if
-// you miss them — they're nice to have but the main chart carries the story.)
+// Respects the global `granularity` prop (monthly/quarterly).
 
 function sliceSrc(src, si, ei) {
   const out = {};
@@ -14,10 +12,12 @@ function sliceSrc(src, si, ei) {
 
 export default function MetricTab({
   data, activeSegs, si, ei,
-  metric,       // 'cases' | 'orders' | 'doors' | 'velocity' | 'revenue'
-  title,        // display title
+  metric,
+  title,
   isMoney = false,
   isVelocity = false,
+  isDoors = false,
+  granularity = 'monthly',
   defaultType = 'bar',
 }) {
   const [type, setType] = useState(isVelocity ? 'line' : defaultType);
@@ -48,6 +48,8 @@ export default function MetricTab({
         type={type}
         isMoney={isMoney}
         isVelocity={isVelocity}
+        isDoors={isDoors}
+        granularity={granularity}
       />
     </div>
   );
