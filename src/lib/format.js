@@ -63,7 +63,6 @@ export function getPrevQ(q) {
 }
 
 // Segment color palette — names match OrderForm column J and Data-Summary.
-// Each segment keeps the color it had before the rename.
 export const SEG_COLORS = {
   'FS Delivery - SoCal':     '#378ADD',
   'FS Delivery - NY':        '#1D9E75',
@@ -75,4 +74,18 @@ export const SEG_COLORS = {
 };
 
 // Canonical segment order for buttons + charts.
-// A segment only shows
+// A segment only shows on the dashboard if it's listed here.
+export const SEG_ORDER = [
+  'FS Delivery - SoCal', 'FS Delivery - NY', 'FS-Direct Ship',
+  'Retail',
+  'FS Distributor - Global', 'FS Distributor - Odeko', 'FS Distributor - Other',
+];
+
+// Segment grouping for the quick-select pills:
+//   'FS' = Food Service Delivery, 'RT' = Retail, 'WH' = Food Service Distribution
+export function segGroupOf(s) {
+  if (/^FS Distributor/i.test(s)) return 'WH';
+  if (/^FS/i.test(s)) return 'FS';
+  if (/^Retail$/i.test(s)) return 'RT';
+  return 'Other';
+}
