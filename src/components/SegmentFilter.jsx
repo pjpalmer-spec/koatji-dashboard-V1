@@ -1,14 +1,26 @@
 import { SEG_COLORS, segGroupOf } from '../lib/format.js';
 
-// Segment filter: pills grouped by FS / WH / Retail with category labels and
-// quick-select shortcut buttons. Visual layout matches v11's "buildSegFilter".
+// Segment filter: pills grouped into Food Service Delivery / Retail /
+// Food Service Distribution, with quick-select shortcut buttons.
 
 const GROUP_LABELS = [
-  ['FS', 'Food Service'],
-  ['WH', 'Wholesale'],
+  ['FS', 'Food Service Delivery'],
   ['RT', 'Retail'],
+  ['WH', 'Food Service Distribution'],
   ['Other', 'Other'],
 ];
+
+// Order of the pills inside each group
+const PILL_ORDER = [
+  'FS Delivery - SoCal', 'FS Delivery - NY', 'FS-Direct Ship',
+  'Retail',
+  'FS Distributor - Global', 'FS Distributor - Odeko', 'FS Distributor - Other',
+];
+
+function pillRank(s) {
+  const i = PILL_ORDER.indexOf(s);
+  return i >= 0 ? i : 999;
+}
 
 export default function SegmentFilter({ segs, activeSegs, setActiveSegs }) {
   function toggle(s) {
@@ -32,7 +44,9 @@ export default function SegmentFilter({ segs, activeSegs, setActiveSegs }) {
       <div className="card-title">Segments</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8, alignItems: 'flex-start' }}>
         {GROUP_LABELS.map(([key, label]) => {
-          const members = segs.filter((s) => segGroupOf(s) === key);
+          const members = segs
+            .filter((s) => segGroupOf(s) === key)
+            .sort((a, b) => pillRank(a) - pillRank(b));
           if (!members.length) return null;
           return (
             <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -75,9 +89,9 @@ export default function SegmentFilter({ segs, activeSegs, setActiveSegs }) {
       </div>
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         <button className="control-btn" onClick={() => setActiveSegs(segs.slice())}>All</button>
-        <button className="control-btn" onClick={() => selectGroup('FS')}>FS only</button>
-        <button className="control-btn" onClick={() => selectGroup('WH')}>WH only</button>
+        <button className="control-btn" onClick={() => selectGroup('FS')}>FS Delivery only</button>
         <button className="control-btn" onClick={() => selectGroup('RT')}>Retail only</button>
+        <button className="control-btn" onClick={() => selectGroup('WH')}>FS Distribution only</button>
         <button className="control-btn" onClick={() => setActiveSegs([])}>Clear</button>
       </div>
     </div>
