@@ -62,29 +62,17 @@ export function getPrevQ(q) {
   return n === 1 ? (parseInt(y) - 1) + '-Q4' : y + '-Q' + (n - 1);
 }
 
-// Segment color palette — same as v11
+// Segment color palette — names match OrderForm column J and Data-Summary.
+// Each segment keeps the color it had before the rename.
 export const SEG_COLORS = {
-  'FS-SoCal': '#378ADD',
-  'FS-NY': '#1D9E75',
-  'FS-Other': '#EF9F27',
-  'Retail': '#D85A30',
-  'WH-ODEKO': '#D4537E',
-  'WH-Japan': '#9B59B6',
-  'WH-Mexico': '#14B8A6',
-  'WH-Other': '#5DCAA5',
+  'FS Delivery - SoCal':     '#378ADD',
+  'FS Delivery - NY':        '#1D9E75',
+  'FS-Direct Ship':          '#EF9F27',
+  'Retail':                  '#D85A30',
+  'FS Distributor - Global': '#9B59B6',
+  'FS Distributor - Odeko':  '#D4537E',
+  'FS Distributor - Other':  '#5DCAA5',
 };
 
-// Canonical segment order for buttons + charts
-export const SEG_ORDER = [
-  'FS-SoCal', 'FS-NY', 'FS-Other',
-  'WH-Other', 'WH-ODEKO', 'WH-Japan', 'WH-Mexico',
-  'Retail',
-];
-
-// Segment grouping for the FS/WH/Retail quick-select pills
-export function segGroupOf(s) {
-  if (/^FS-/i.test(s)) return 'FS';
-  if (/^WH-/i.test(s)) return 'WH';
-  if (/^Retail$/i.test(s)) return 'RT';
-  return 'Other';
-}
+// Canonical segment order for buttons + charts.
+// A segment only shows
