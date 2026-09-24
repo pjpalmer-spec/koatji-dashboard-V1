@@ -6,9 +6,7 @@ import SegmentFilter from './components/SegmentFilter.jsx';
 import KpiStrip from './components/KpiStrip.jsx';
 import OverviewTab from './tabs/OverviewTab.jsx';
 import MetricTab from './tabs/MetricTab.jsx';
-import ReconciliationTab, { computeReconRows } from './tabs/ReconciliationTab.jsx';
 import CustomersTab from './tabs/CustomersTab.jsx';
-import { fmtMoneyFull } from './lib/format.js';
 
 // Top-level app. Owns the global UI state:
 //   - which tab is active
@@ -23,8 +21,6 @@ const TABS = [
   { id: 'orders', label: 'Orders' },
   { id: 'doors', label: 'Doors' },
   { id: 'velocity', label: 'Velocity' },
-  { id: 'revenue', label: 'Revenue' },
-  { id: 'recon', label: 'Reconcile', requiresPL: true, isNew: true },
   { id: 'customers', label: 'Customers' },
 ];
 
@@ -49,7 +45,6 @@ export default function App() {
 function Dashboard({ payload }) {
   const data = payload.data;
   const customers = payload.customers?.customers || [];
-  const pl = payload.pl && !payload.pl.error ? payload.pl : null;
 
   const segs = useMemo(
     () => SEG_ORDER.filter((s) => data.cases[s] && data.cases[s].some((v) => v > 0)),
@@ -76,13 +71,9 @@ function Dashboard({ payload }) {
   // single-period snapshots, not time series.
   const [granularity, setGranularity] = useState('monthly');
 
-  const reconAlerts = useMemo(() => {
-    if (!pl) return [];
-    return computeReconRows(data, pl, si, ei).filter((r) => r.flag !== 'green');
-  }, [data, pl, si, ei]);
-
-  const visibleTabs = TABS.filter((t) => !t.requiresPL || pl);
-  const showStripAndControls = tab !== 'customers' && tab !== 'recon';
+  // Revenue and Reconcile tabs removed (revenue no longer tracked in the dashboard).
+  const visibleTabs = TABS;
+  const showStripAndControls = tab !== 'customers';
 
   return (
     <div>
@@ -132,41 +123,6 @@ function Dashboard({ payload }) {
         </div>
       </div>
 
-      {reconAlerts.length > 0 && (
-        <div
-          onClick={() => setTab('recon')}
-          style={{
-            background: 'linear-gradient(90deg, #3a2418, #2a1810)',
-            border: '2px solid #FF6B35',
-            borderRadius: 12,
-            padding: '12px 18px',
-            marginBottom: 14,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            fontSize: 13,
-          }}
-        >
-          <span style={{ fontSize: 22 }}>⚠</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, color: '#FFB89A', marginBottom: 2 }}>
-              Revenue reconciliation — {reconAlerts.length} month{reconAlerts.length > 1 ? 's' : ''} need review
-            </div>
-            <div style={{ color: '#cbd5e1', fontSize: 12 }}>
-              {reconAlerts.slice(0, 3).map((r, i) => {
-                const sign = r.v >= 0 ? '+' : '\u2212';
-                return (i > 0 ? '  ·  ' : '') + `${r.month} ${sign}${fmtMoneyFull(Math.abs(r.v))}`;
-              }).join('')}
-              {reconAlerts.length > 3 && `  ·  +${reconAlerts.length - 3} more`}
-            </div>
-          </div>
-          <div style={{ color: '#FFB89A', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            Open →
-          </div>
-        </div>
-      )}
-
       {showStripAndControls && (
         <KpiStrip data={data} activeSegs={activeSegs} si={si} ei={ei} />
       )}
@@ -177,8 +133,6 @@ function Dashboard({ payload }) {
       {tab === 'orders' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="orders" title="Orders by Segment" granularity={granularity} />}
       {tab === 'doors' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="doors" title="Doors by Segment" isDoors granularity={granularity} />}
       {tab === 'velocity' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="velocity" title="Velocity by Segment" isVelocity granularity={granularity} />}
-      {tab === 'revenue' && <MetricTab data={data} activeSegs={activeSegs} si={si} ei={ei} metric="revenue" title="Gross Revenue by Segment" isMoney granularity={granularity} />}
-      {tab === 'recon' && <ReconciliationTab data={data} pl={pl} si={si} ei={ei} />}
       {tab === 'customers' && <CustomersTab data={data} customers={customers} activeSegs={activeSegs} si={si} ei={ei} />}
     </div>
   );
