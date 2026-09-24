@@ -7,7 +7,7 @@ import {
 
 // KPI strip — single card with three period rows (Last Month, Last Quarter,
 // Period) toggled by buttons. Each row shows 5 metrics: Cases, Orders, Doors,
-// Velocity, Revenue. Direct port of the v11 collapsed strip.
+// Velocity. (Revenue removed.) Direct port of the v11 collapsed strip.
 
 function GrowthPill({ value, label }) {
   if (value === null || value === undefined) return null;
@@ -136,30 +136,27 @@ export default function KpiStrip({ data, activeSegs, si, ei }) {
       </div>
 
       {period === 'lm' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px 24px' }}>
           <KpiCell label="Cases" value={fmt(lmCases)} growth={pct(lmCases, lmCasesPrev)} growthLabel="MoM" />
           <KpiCell label="Orders" value={fmt(lmOrders)} growth={pct(lmOrders, lmOrdersPrev)} growthLabel="MoM" />
           <KpiCell label="Doors" value={fmt(lmDoors)} growth={pct(lmDoors, lmDoorsPrev)} growthLabel="MoM" />
           <KpiCell label="Velocity" value={lmVel > 0 ? lmVel.toFixed(1) : '\u2014'} growth={pct(lmVel, lmVelPrev)} growthLabel="MoM" />
-          <KpiCell label="Revenue" value={fmtMoney(lmRev)} growth={pct(lmRev, lmRevPrev)} growthLabel="MoM" />
         </div>
       )}
       {period === 'lq' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px 24px' }}>
           <KpiCell label="Cases" value={fmt(lqCases)} growth={pct(lqCases, lqCasesPrev)} growthLabel="QoQ" />
           <KpiCell label="Orders" value={fmt(lqOrders)} growth={pct(lqOrders, lqOrdersPrev)} growthLabel="QoQ" />
           <KpiCell label="Doors" value={fmt(lqDoors)} growth={pct(lqDoors, lqDoorsPrev)} growthLabel="QoQ" />
           <KpiCell label="Velocity" value={lqVel > 0 ? lqVel.toFixed(1) : '\u2014'} growth={pct(lqVel, lqVelPrev)} growthLabel="QoQ" />
-          <KpiCell label="Revenue" value={fmtMoney(lqRev)} growth={pct(lqRev, lqRevPrev)} growthLabel="QoQ" />
         </div>
       )}
       {period === 'ep' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px 24px' }}>
           <KpiCell label="Cases" value={fmt(epCases)} />
           <KpiCell label="Orders" value={fmt(epOrders)} />
           <KpiCell label="Doors" value={fmt(epDoors)} />
           <KpiCell label="Velocity" value={epVel > 0 ? epVel.toFixed(1) : '\u2014'} />
-          <KpiCell label="Revenue" value={fmtMoney(epRev)} />
         </div>
       )}
     </div>
