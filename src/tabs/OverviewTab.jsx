@@ -55,22 +55,6 @@ export default function OverviewTab({ data, activeSegs, si, ei, granularity }) {
         />
       </ChartCard>
 
-      {data.revenue && (
-        <ChartCard title="Gross Revenue by Segment" type={revType} setType={setRevType}>
-          <ChartLegend activeSegs={activeSegs.filter(
-            (s) => data.revenue[s] && data.revenue[s].slice(si, ei + 1).some((v) => v > 0)
-          )} />
-          <SegmentChart
-            src={sliceSrc(data.revenue, si, ei)}
-            months={months}
-            activeSegs={activeSegs}
-            type={revType}
-            isMoney
-            granularity={granularity}
-          />
-        </ChartCard>
-      )}
-
       <ChartCard title="DTC vs B2B Cases" type={dtcType} setType={setDtcType}>
         <DtcVsB2BChart data={data} activeSegs={activeSegs} si={si} ei={ei} type={dtcType} granularity={granularity} />
       </ChartCard>
