@@ -103,7 +103,6 @@ export default function CustomersTab({ data, customers, activeSegs, si, ei }) {
               <SortHeader col="status" sortColumn={sortColumn} onClick={handleSort}>Status</SortHeader>
               <SortHeader col="segment" sortColumn={sortColumn} onClick={handleSort}>Segment</SortHeader>
               <SortHeader col="cases" sortColumn={sortColumn} onClick={handleSort}># Cases</SortHeader>
-              <SortHeader col="revenue" sortColumn={sortColumn} onClick={handleSort} align="right">Revenue $</SortHeader>
               <SortHeader col="first" sortColumn={sortColumn} onClick={handleSort}>First Order</SortHeader>
               <SortHeader col="last" sortColumn={sortColumn} onClick={handleSort}>Last Order</SortHeader>
               <SortHeader col="orders" sortColumn={sortColumn} onClick={handleSort}># Orders</SortHeader>
@@ -131,7 +130,6 @@ export default function CustomersTab({ data, customers, activeSegs, si, ei }) {
                   </td>
                   <td><span style={{ fontSize: 9, fontWeight: 700, color: col }}>{c.segment}</span></td>
                   <td style={{ fontWeight: 700, color: '#fff', textAlign: 'right' }}>{(c.cases || 0).toLocaleString()}</td>
-                  <td style={{ textAlign: 'right', color: '#fff', fontWeight: 600 }}>{fmtMoney(c.revenue)}</td>
                   <td style={{ color: '#a0aec0', fontSize: 11 }}>{c.first || '\u2014'}</td>
                   <td style={{ color: '#a0aec0', fontSize: 11 }}>{c.last || '\u2014'}</td>
                   <td style={{ textAlign: 'right', color: '#fff', fontWeight: 600 }}>{(c.orders || 0).toLocaleString()}</td>
