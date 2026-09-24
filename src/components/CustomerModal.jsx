@@ -94,11 +94,10 @@ export default function CustomerModal({ customer, onClose }) {
           </div>
 
           {/* Stat grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', borderBottom: '0.5px solid #2a2f3a', background: '#14171e' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', borderBottom: '0.5px solid #2a2f3a', background: '#14171e' }}>
             <div style={cellPad}><div style={lblS}>Cases</div><div style={valLg}>{lifetimeCases.toLocaleString()}</div></div>
             <div style={cellPad}><div style={lblS}>Orders</div><div style={valLg}>{(lifetimeOrders || 0).toLocaleString()}</div></div>
             <div style={cellPad}><div style={lblS}>Avg order</div><div style={valLg}>{(avgOrder || 0).toLocaleString()}</div></div>
-            <div style={cellPad}><div style={lblS}>Revenue</div><div style={valLg}>{fmtMoney(lifetimeRev)}</div></div>
             <div style={cellPad}><div style={lblS}>First order</div><div style={valSm}>{customer.first || '\u2014'}</div></div>
             <div style={{ padding: '14px 16px' }}><div style={lblS}>Last order</div><div style={valSm}>{customer.last || customer.churn || '\u2014'}</div></div>
           </div>
